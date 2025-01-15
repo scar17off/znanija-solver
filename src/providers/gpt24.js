@@ -47,7 +47,35 @@ People hang wreaths on their doors during Christmas.
 Якщо отримуєш питання з контекстом "Моя відповідь:", не пиши "Відповідь:" на початку, просто дай правильну відповідь.`;
     }
 
-    async getAnswer(prompt, onStream) {
+    async getAnswer(prompt, onStream, images = []) {
+        const messages = [
+            {
+                role: "system",
+                content: this.systemMessage
+            }
+        ];
+
+        // Add images to the messages if they exist
+        if (images && images.length > 0) {
+            const imageContents = images.map(imageUrl => ({
+                type: "image_url",
+                image_url: {
+                    url: imageUrl
+                }
+            }));
+
+            messages.push({
+                role: "user",
+                content: imageContents
+            });
+        }
+
+        // Add the text prompt
+        messages.push({
+            role: "user",
+            content: prompt
+        });
+
         const response = await fetch('https://gpt24-ecru.vercel.app/api/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -55,18 +83,9 @@ People hang wreaths on their doors during Christmas.
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
             },
             body: JSON.stringify({
-                messages: [
-                    {
-                        role: "system",
-                        content: this.systemMessage
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
+                messages: messages,
                 stream: true,
-                model: "gpt-4o",
+                model: images.length > 0 ? "gpt-4o-mini" : "gpt-4o", // Use mini model for image analysis
                 temperature: 0.7,
                 presence_penalty: 0,
                 frequency_penalty: 0,

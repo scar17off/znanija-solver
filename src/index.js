@@ -132,7 +132,7 @@ import { GPT24Provider } from './providers/gpt24';
                 await updateAnswer(chunk);
             };
 
-            await gpt24.getAnswer(question, handleStream);
+            await gpt24.getAnswer(question.text, handleStream, question.images);
         } catch (error) {
             console.error('Error getting answer:', error);
             await updateAnswer('Error: Failed to get answer');
@@ -146,7 +146,27 @@ import { GPT24Provider } from './providers/gpt24';
         const questionText = questionContainer.querySelector('.sg-text.sg-text--text-gray-70')?.innerText;
         if (!questionText) return null;
 
-        return questionText.replace('Задание', '').trim();
+        // Get image URLs from attachments
+        const images = [];
+        
+        // Get main image
+        const mainImage = questionContainer.querySelector('.brn-main-attachment img');
+        if (mainImage?.src) {
+            images.push(mainImage.src);
+        }
+        
+        // Get additional images
+        const attachedImages = questionContainer.querySelectorAll('.brn-attachments__thumbnail img.brn-image');
+        attachedImages.forEach(img => {
+            if (img.src && !images.includes(img.src)) {
+                images.push(img.src);
+            }
+        });
+
+        return {
+            text: questionText.replace('Задание', '').trim(),
+            images: images
+        };
     }
 
     function startMonitoring() {
