@@ -1,6 +1,6 @@
 import { GPT24Provider } from './providers/gpt24';
 
-(function() {
+(function () {
     "use strict";
 
     const gpt24 = new GPT24Provider();
@@ -8,31 +8,64 @@ import { GPT24Provider } from './providers/gpt24';
 
     function createAIButton() {
         const buttonHtml = `
-            <div>
-                <div class="OutsideClickController-module__wrapper--3MKCa">
-                    <div data-testid="tooltip_container" class="Tooltip-module__brn-tooltip-container--za0fg">
-                        <div role="button" class="Tooltip-module__brn-tooltip-children--Wa25k" tabindex="-1">
-                            <button id="gpt24-answer-button" data-testid="rich_text_editor_toolbar_gpt24_button" 
-                                class="sg-button sg-button--m sg-button--transparent sg-button--icon-only" 
-                                aria-label="GPT24 Answer">
-                                <span class="sg-button__hover-overlay"></span>
-                                <span class="sg-button__icon sg-button__icon--m">
-                                    <div aria-hidden="true" class="sg-icon sg-icon--adaptive sg-icon--x24" 
-                                        style="font-family: 'Roboto', sans-serif; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center;">
-                                        AI
-                                    </div>
-                                </span>
-                                <span class="sg-button__text"></span>
-                            </button>
-                        </div>
-                    </div>
+    <div style="display: flex; align-items: center; gap: 4px;">
+        <div class="OutsideClickController-module__wrapper--3MKCa">
+            <div data-testid="tooltip_container" class="Tooltip-module__brn-tooltip-container--za0fg">
+                <div role="button" class="Tooltip-module__brn-tooltip-children--Wa25k" tabindex="-1" aria-haspopup="false" aria-expanded="false">
+                    <button id="gpt24-answer-button" 
+                        data-testid="rich_text_editor_toolbar_gpt24_button" 
+                        class="sg-button sg-button--m sg-button--transparent sg-button--icon-only" 
+                        aria-label="GPT24 Answer">
+                        <span class="sg-button__hover-overlay"></span>
+                        <span class="sg-button__icon sg-button__icon--m">
+                            <div aria-hidden="true" 
+                                class="sg-icon sg-icon--adaptive sg-icon--x24" 
+                                style="font-family: 'Roboto', sans-serif; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center;">
+                                AI
+                            </div>
+                        </span>
+                        <span class="sg-button__text"></span>
+                    </button>
                 </div>
             </div>
-        `;
+        </div>
+        <select id="gpt24-model-select" 
+            class="sg-button sg-button--m sg-button--transparent" 
+            style="cursor: pointer; text-transform: none; padding: 0 8px; display: flex; align-items: center; justify-content: center; text-align: center; text-align-last: center; background: transparent; color: #323c45; font-weight: bold; border: none;">
+            <option value="gpt-4o" style="background: white; color: #323c45; font-weight: bold;">GPT-4</option>
+            <option value="gpt-4o-mini" style="background: white; color: #323c45; font-weight: bold;">GPT-4 Mini</option>
+            <option value="gpt-4o-turbo" style="background: white; color: #323c45; font-weight: bold;">GPT-4 Turbo</option>
+        </select>
+    </div>`;
 
         const parser = new DOMParser();
         const buttonElement = parser.parseFromString(buttonHtml, 'text/html').body.firstChild;
-        
+
+        // Add CSS to modify the answer editor width
+        const style = document.createElement('style');
+        style.textContent = `
+            .brn-answer-editor-layer__content {
+                width: 790px !important;
+            }
+            #gpt24-model-select {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                border-radius: 20px;
+            }
+            #gpt24-model-select:focus {
+                outline: none;
+            }
+            #gpt24-model-select option {
+                border-radius: 8px;
+                padding: 4px 8px;
+            }
+            #gpt24-model-select optgroup {
+                border-radius: 8px;
+            }
+        `;
+        document.head.appendChild(style);
+
         return buttonElement;
     }
 
@@ -48,17 +81,20 @@ import { GPT24Provider } from './providers/gpt24';
         separator.style.marginRight = '0px';
         toolbar.appendChild(separator);
 
-        // Add the AI button
+        // Add the AI button with dropdown
         const gptButton = createAIButton();
         toolbar.appendChild(gptButton);
 
         // Add click handler
         const button = gptButton.querySelector('#gpt24-answer-button');
+        const modelSelect = gptButton.querySelector('#gpt24-model-select');
+
         button.addEventListener('click', () => {
             const question = getQuestionData();
             if (question) {
+                const selectedModel = modelSelect.value;
                 clearEditor();
-                processQuestion(question);
+                processQuestion(question, selectedModel);
             }
         });
     }
@@ -73,9 +109,9 @@ import { GPT24Provider } from './providers/gpt24';
             cancelable: true,
             clipboardData: new DataTransfer()
         });
-        
+
         pasteEvent.clipboardData.setData('text/plain', text);
-        
+
         const editor = getAnswerEditor();
         if (editor) {
             editor.focus();
@@ -118,8 +154,8 @@ import { GPT24Provider } from './providers/gpt24';
         }
     }
 
-    async function processQuestion(question) {
-        console.log('Processing question:', question);
+    async function processQuestion(question, model) {
+        console.log('Processing question:', question, 'with model:', model);
         try {
             const editor = getAnswerEditor();
             if (!editor) return;
@@ -132,7 +168,7 @@ import { GPT24Provider } from './providers/gpt24';
                 await updateAnswer(chunk);
             };
 
-            await gpt24.getAnswer(question.text, handleStream, question.images);
+            await gpt24.getAnswer(question.text, handleStream, question.images, model);
         } catch (error) {
             console.error('Error getting answer:', error);
             await updateAnswer('Error: Failed to get answer');
@@ -148,13 +184,13 @@ import { GPT24Provider } from './providers/gpt24';
 
         // Get image URLs from attachments
         const images = [];
-        
+
         // Get main image
         const mainImage = questionContainer.querySelector('.brn-main-attachment img');
         if (mainImage?.src) {
             images.push(mainImage.src);
         }
-        
+
         // Get additional images
         const attachedImages = questionContainer.querySelectorAll('.brn-attachments__thumbnail img.brn-image');
         attachedImages.forEach(img => {

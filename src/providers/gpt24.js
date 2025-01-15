@@ -47,7 +47,7 @@ People hang wreaths on their doors during Christmas.
 Якщо отримуєш питання з контекстом "Моя відповідь:", не пиши "Відповідь:" на початку, просто дай правильну відповідь.`;
     }
 
-    async getAnswer(prompt, onStream, images = []) {
+    async getAnswer(prompt, onStream, images = [], model = 'gpt-4o') {
         const messages = [
             {
                 role: "system",
@@ -85,7 +85,7 @@ People hang wreaths on their doors during Christmas.
             body: JSON.stringify({
                 messages: messages,
                 stream: true,
-                model: images.length > 0 ? "gpt-4o-mini" : "gpt-4o", // Use mini model for image analysis
+                model: model, // Use the provided model parameter
                 temperature: 0.7,
                 presence_penalty: 0,
                 frequency_penalty: 0,
