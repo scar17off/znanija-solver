@@ -66,7 +66,7 @@ People hang wreaths on their doors during Christmas.
                     }
                 ],
                 stream: true,
-                model: "gpt-4o-mini",
+                model: "gpt-4o",
                 temperature: 0.7,
                 presence_penalty: 0,
                 frequency_penalty: 0,
