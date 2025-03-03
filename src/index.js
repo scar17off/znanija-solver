@@ -1,9 +1,11 @@
 import { GPT24Provider } from './providers/gpt24';
+import { MulaiProvider } from './providers/mulai';
 
 (function () {
     "use strict";
 
     const gpt24 = new GPT24Provider();
+    const mulai = new MulaiProvider();
     let currentText = '';
 
     function createAIButton() {
@@ -29,6 +31,12 @@ import { GPT24Provider } from './providers/gpt24';
                 </div>
             </div>
         </div>
+        <select id="provider-select" 
+            class="sg-button sg-button--m sg-button--transparent" 
+            style="cursor: pointer; text-transform: none; padding: 0 8px; display: flex; align-items: center; justify-content: center; text-align: center; text-align-last: center; background: transparent; color: #323c45; font-weight: bold; border: none;">
+            <option value="gpt24" style="background: white; color: #323c45; font-weight: bold;">GPT24</option>
+            <option value="mulai" style="background: white; color: #323c45; font-weight: bold;">Mulai</option>
+        </select>
         <select id="gpt24-model-select" 
             class="sg-button sg-button--m sg-button--transparent" 
             style="cursor: pointer; text-transform: none; padding: 0 8px; display: flex; align-items: center; justify-content: center; text-align: center; text-align-last: center; background: transparent; color: #323c45; font-weight: bold; border: none;">
@@ -36,32 +44,77 @@ import { GPT24Provider } from './providers/gpt24';
             <option value="gpt-4o-mini" style="background: white; color: #323c45; font-weight: bold;">GPT-4 Mini</option>
             <option value="gpt-4o-turbo" style="background: white; color: #323c45; font-weight: bold;">GPT-4 Turbo</option>
         </select>
+        <input id="cors-api-key" 
+            type="text" 
+            placeholder="CORS.SH API Key"
+            class="sg-input sg-input--m"
+            style="width: 150px; margin-left: 8px; display: none;"
+            value="${localStorage.getItem('corsApiKey') || ''}"
+        />
     </div>`;
 
         const parser = new DOMParser();
         const buttonElement = parser.parseFromString(buttonHtml, 'text/html').body.firstChild;
 
-        // Add CSS to modify the answer editor width
+        // Add event listeners
+        const providerSelect = buttonElement.querySelector('#provider-select');
+        const modelSelect = buttonElement.querySelector('#gpt24-model-select');
+        const corsKeyInput = buttonElement.querySelector('#cors-api-key');
+
+        // Set initial provider from localStorage
+        const savedProvider = localStorage.getItem('selectedProvider') || 'gpt24';
+        providerSelect.value = savedProvider;
+        modelSelect.style.display = savedProvider === 'gpt24' ? 'flex' : 'none';
+        corsKeyInput.style.display = savedProvider === 'mulai' ? 'block' : 'none';
+
+        // Event listener for provider selection
+        providerSelect.addEventListener('change', (e) => {
+            const selectedProvider = e.target.value;
+            localStorage.setItem('selectedProvider', selectedProvider);
+            modelSelect.style.display = selectedProvider === 'gpt24' ? 'flex' : 'none';
+            corsKeyInput.style.display = selectedProvider === 'mulai' ? 'block' : 'none';
+        });
+
+        // Event listener for CORS API key
+        corsKeyInput.addEventListener('change', (e) => {
+            localStorage.setItem('corsApiKey', e.target.value);
+        });
+
+        // Add CSS to modify styles
         const style = document.createElement('style');
         style.textContent = `
             .brn-answer-editor-layer__content {
-                width: 790px !important;
+                width: 885px !important;
             }
+            #provider-select,
             #gpt24-model-select {
                 -webkit-appearance: none;
                 -moz-appearance: none;
                 appearance: none;
                 border-radius: 20px;
             }
+            #provider-select:focus,
             #gpt24-model-select:focus {
                 outline: none;
             }
+            #provider-select option,
             #gpt24-model-select option {
                 border-radius: 8px;
                 padding: 4px 8px;
             }
+            #provider-select optgroup,
             #gpt24-model-select optgroup {
                 border-radius: 8px;
+            }
+            #cors-api-key {
+                border: 1px solid #e1e3e5;
+                border-radius: 20px;
+                padding: 4px 12px;
+                font-size: 13px;
+            }
+            #cors-api-key:focus {
+                outline: none;
+                border-color: #323c45;
             }
         `;
         document.head.appendChild(style);
@@ -168,7 +221,12 @@ import { GPT24Provider } from './providers/gpt24';
                 await updateAnswer(chunk);
             };
 
-            await gpt24.getAnswer(question.text, handleStream, question.images, model);
+            const selectedProvider = document.querySelector('#provider-select').value;
+            if (selectedProvider === 'gpt24') {
+                await gpt24.getAnswer(question.text, handleStream, question.images, model);
+            } else {
+                await mulai.getAnswer(question.text, handleStream, question.images);
+            }
         } catch (error) {
             console.error('Error getting answer:', error);
             await updateAnswer('Error: Failed to get answer');
